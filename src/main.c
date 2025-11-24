@@ -11,6 +11,7 @@
 // #include <linux/random.h>
 #include <fcntl.h>
 #include <errno.h>
+ssize_t getline(char **restrict lineptr, size_t *restrict n, FILE *restrict stream);
 typedef unsigned char uchar;
 
 static void usage (const char* program_name);
@@ -271,12 +272,17 @@ void errshow (currstat status)
 static 
 void generate_key()
 {
-    char name[100]; 
-    uchar buf[MKEYSIZE]; 
-    
+    // char name[100]; 
+    char* name = NULL;
+    size_t n = 0;
+
+    uchar buf[MKEYSIZE];
+
     printf("write enc key name: ");
-    if (!fgets(name, sizeof(name), stdin)) {
+    ssize_t resp = getline(&name, &n, stdin);
+    if (resp < 0) {
         perror("wtf");
+        free(name);
         return;
     }
     // scanf("%99s", name);
