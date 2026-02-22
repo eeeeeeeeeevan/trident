@@ -2,10 +2,10 @@
 #include <openssl/evp.h>
 #include <string.h>
 typedef const unsigned char cuchar;
-typedef unsigned char uchar;
+typedef unsigned char byte;
 
 void tridentsha (
-    uchar output[64], 
+    byte output[64], 
     cuchar input[64],
     cuchar* input2, 
     cuchar key[SHA512SIZE],

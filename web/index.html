@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>trident</title>
+<style>
+body {
+    max-width: 520px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+section {
+    margin: 2rem 0;
+    padding: 1rem 0;
+    border-top: 1px solid;
+}
+
+label {
+    display: block;
+    margin-top: 0.5rem;
+}
+
+input[type="file"] {
+    display: block;
+    margin: 0.25rem 0 0.5rem;
+}
+
+button {
+    margin-top: 0.75rem;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.row label {
+    margin: 0;
+}
+
+pre {
+    overflow-x: auto;
+    word-break: break-all;
+    white-space: pre-wrap;
+}
+
+#keygen-out, .output {
+    margin-top: 0.5rem;
+}
+</style>
+</head>
+<body>
+
+<h1>trident</h1>
+<div id="status">wasm loading</div>
+
+<section>
+<h2>generate key</h2>
+<button id="btn-keygen" disabled>generate 128-byte key</button>
+<pre>
+<div class="output" id="keygen-out"></div>
+</pre>
+<button id="btn-dl-key" style="display:none; margin-top:4px;">download key</button>
+</section>
+
+<section>
+<h2>encrypt</h2>
+<label>key file (128 bytes):</label>
+<input type="file" id="enc-key">
+<label>plaintext file:</label>
+<input type="file" id="enc-input">
+<div class="row">
+<label style="margin:0">memwork:</label>
+<select id="enc-memwork">
+<option value="20">20 (1 MB)</option>
+<option value="21">21 (2 MB)</option>
+<option value="22">22 (4 MB)</option>
+<option value="23">23 (8 MB)</option>
+<option value="24">24 (16 MB)</option>
+</select>
+</div>
+<button id="btn-enc" disabled>encrypt</button>
+<div class="output" id="enc-out"></div>
+</section>
+
+<section>
+<h2>decrypt</h2>
+<label>key file (128 bytes):</label>
+<input type="file" id="dec-key">
+<label>encrypted file:</label>
+<input type="file" id="dec-input">
+<button id="btn-dec" disabled>decrypt</button>
+<div class="output" id="dec-out"></div>
+</section>
+
+<script src="trident.js"></script>
+<script>
+let T=null,lastKey=null;function hex(e){return Array.from(new Uint8Array(e)).map(e=>e.toString(16).padStart(2,"0")).join("")}function readFile(e){return new Promise((t,n)=>{let l=e.files[0];if(!l)return n("no file selected");let r=new FileReader;r.onload=()=>t(new Uint8Array(r.result)),r.onerror=()=>n("read error"),r.readAsArrayBuffer(l)})}function download(e,t){let n=document.createElement("a");n.href=URL.createObjectURL(new Blob([e])),n.download=t,n.click(),URL.revokeObjectURL(n.href)}TridentModule().then(e=>{T=e,document.getElementById("status").textContent="ready",document.getElementById("btn-keygen").disabled=!1,document.getElementById("btn-enc").disabled=!1,document.getElementById("btn-dec").disabled=!1}),document.getElementById("btn-keygen").onclick=()=>{let e=T._get_mkeysize(),t=T._wasm_malloc(e),n=T._trident_keygen(t);if(0!==n){document.getElementById("keygen-out").textContent="error generating key",T._wasm_free(t);return}lastKey=new Uint8Array(T.HEAPU8.buffer,t,e).slice(),T._wasm_free(t),document.getElementById("keygen-out").textContent=hex(lastKey),document.getElementById("btn-dl-key").style.display=""},document.getElementById("btn-dl-key").onclick=()=>{lastKey&&download(lastKey,"trident.key")},document.getElementById("btn-enc").onclick=async()=>{let e=document.getElementById("enc-out");try{let t=await readFile(document.getElementById("enc-key")),n=await readFile(document.getElementById("enc-input")),l=parseInt(document.getElementById("enc-memwork").value);if(t.length!==T._get_mkeysize()){e.textContent="key must be "+T._get_mkeysize()+" bytes";return}e.textContent="encrypting...",await new Promise(e=>setTimeout(e,10));let r=T._get_blocksize(),a=Math.ceil(n.length/r),d=T._get_mkeysize()+1+a*r,y=T._wasm_malloc(t.length),o=T._wasm_malloc(n.length),c=T._wasm_malloc(d);T.HEAPU8.set(t,y),T.HEAPU8.set(n,o);let s=T._trident_encrypt(y,o,n.length,c,l);if(T._wasm_free(y),T._wasm_free(o),s<0){e.textContent="encrypt error: "+s,T._wasm_free(c);return}let i=new Uint8Array(T.HEAPU8.buffer,c,s).slice();T._wasm_free(c),e.textContent=s+" bytes encrypted",download(i,"encrypted.trd")}catch(m){e.textContent="error: "+m}},document.getElementById("btn-dec").onclick=async()=>{let e=document.getElementById("dec-out");try{let t=await readFile(document.getElementById("dec-key")),n=await readFile(document.getElementById("dec-input"));if(t.length!==T._get_mkeysize()){e.textContent="key must be "+T._get_mkeysize()+" bytes";return}e.textContent="decrypting...",await new Promise(e=>setTimeout(e,10));let l=T._get_blocksize(),r=n.length-T._get_mkeysize()-1,a=Math.floor(r/l),d=a*l,y=T._wasm_malloc(t.length),o=T._wasm_malloc(n.length),c=T._wasm_malloc(d);T.HEAPU8.set(t,y),T.HEAPU8.set(n,o);let s=T._trident_decrypt(y,o,n.length,c);if(T._wasm_free(y),T._wasm_free(o),s<0){e.textContent="decrypt error: "+s,T._wasm_free(c);return}let i=new Uint8Array(T.HEAPU8.buffer,c,s).slice();T._wasm_free(c),e.textContent=s+" bytes decrypted",download(i,"decrypted.bin")}catch(m){e.textContent="error: "+m}};
+</script>
+</body>
+</html>
+2

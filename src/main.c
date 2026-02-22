@@ -12,14 +12,14 @@
 #include <fcntl.h>
 #include <errno.h>
 ssize_t getline(char **restrict lineptr, size_t *restrict n, FILE *restrict stream);
-typedef unsigned char uchar;
+typedef unsigned char byte;
 
 static void usage (const char* program_name);
 static void errshow (currstat status);
 static void generate_key();
 
 static inline
-void read_file (const char* filename, uchar* buffer, size_t size)
+void read_file (const char* filename, byte* buffer, size_t size)
 {
     FILE* f = fopen(filename, "rb");
     if (!f) {
@@ -36,7 +36,7 @@ void read_file (const char* filename, uchar* buffer, size_t size)
 // uncomment if needed one day
 //  __attribute__((__deprecated__)) 
 // static inline
-// void write_file (const char* filename, const uchar* buffer, size_t size)
+// void write_file (const char* filename, const byte* buffer, size_t size)
 // {
 //     FILE* f = fopen(filename, "wb");
 //     if (!f) {
@@ -53,8 +53,8 @@ void read_file (const char* filename, uchar* buffer, size_t size)
 static 
 currstat trident_enc_file (const char* keyfile, const char* infile, const char* outfile, double cpubias, unsigned int memwork)
 {
-    uchar key[MKEYSIZE];
-    uchar iv[MKEYSIZE];
+    byte key[MKEYSIZE];
+    byte iv[MKEYSIZE];
     hashes_t hash_keys; 
     memset(&hash_keys, 0xAA, sizeof(hashes_t));
 
@@ -83,8 +83,8 @@ currstat trident_enc_file (const char* keyfile, const char* infile, const char* 
     fwrite(iv, 1, MKEYSIZE, fout);
     fwrite(&memwork, 1, 1, fout); 
 
-    uchar inbuf[BLOCKSIZE];
-    uchar outbuf[BLOCKSIZE];
+    byte inbuf[BLOCKSIZE];
+    byte outbuf[BLOCKSIZE];
     bigint block_id = 0;
     size_t n;
 
@@ -105,8 +105,8 @@ currstat trident_enc_file (const char* keyfile, const char* infile, const char* 
 static 
 currstat trident_dec_file (const char* keyfile, const char* infile, const char* outfile)
 {
-    uchar key[MKEYSIZE];
-    uchar iv[MKEYSIZE];
+    byte key[MKEYSIZE];
+    byte iv[MKEYSIZE];
     hashes_t hash_keys;
     memset(&hash_keys, 0xAA, sizeof(hashes_t));
 
@@ -126,7 +126,7 @@ currstat trident_dec_file (const char* keyfile, const char* infile, const char* 
         return ERRIO;
     }
 
-    uchar memwork;
+    byte memwork;
     if (fread(&memwork, 1, 1, fin) != 1) {  
         fclose(fin);
         fclose(fout);
@@ -141,8 +141,8 @@ currstat trident_dec_file (const char* keyfile, const char* infile, const char* 
         return status;
     }
 
-    uchar inbuf[BLOCKSIZE];
-    uchar outbuf[BLOCKSIZE];
+    byte inbuf[BLOCKSIZE];
+    byte outbuf[BLOCKSIZE];
     bigint block_id = 0;
     size_t n;
 
@@ -276,7 +276,7 @@ void generate_key()
     char* name = NULL;
     size_t n = 0;
 
-    uchar buf[MKEYSIZE];
+    byte buf[MKEYSIZE];
 
     printf("write enc key name: ");
     ssize_t resp = getline(&name, &n, stdin);

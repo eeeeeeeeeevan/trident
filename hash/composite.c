@@ -3,7 +3,7 @@
 #include <string.h>
 // a bunch of  wrappers
 typedef unsigned int uint;
-typedef unsigned char uchar;
+typedef unsigned char byte;
 typedef const unsigned char cuchar;
 
 #define HASH_COUNT 4
@@ -11,28 +11,28 @@ typedef const unsigned char cuchar;
 #define ONE_C (ZERO_C * (ZERO_C - 1))   
 #define CCOUNTTOTAL (ONE_C * (ONE_C - 1))   
 
-typedef void (*hash_func_t)(uchar*, const uchar*, const uchar*, const hashes_t*);
+typedef void (*hash_func_t)(byte*, const byte*, const byte*, const hashes_t*);
 
 static
-void bl2b (uchar* out, const uchar* in, const uchar * in2, const hashes_t * keys)
+void bl2b (byte* out, const byte* in, const byte * in2, const hashes_t * keys)
 {
     tridentblake(out, in, in2, keys->blake2b_key);
 }
 
 static 
-void sha (uchar* out, const uchar* in, const uchar * in2, const hashes_t * keys)
+void sha (byte* out, const byte* in, const byte * in2, const hashes_t * keys)
 {
     tridentsha(out, in, in2, keys->sha512_key, keys->sha512_ext_key);
 }
 
 static 
-void shat (uchar* out, const uchar* in, const uchar * in2, const hashes_t * keys)
+void shat (byte* out, const byte* in, const byte * in2, const hashes_t * keys)
 {
     tridentshat(out, in, in2, keys->sha3_key, keys->sha3_ext_key);
 }
 
 static 
-void whirlpool (uchar* out, const uchar* in, const uchar * in2, const hashes_t * keys)
+void whirlpool (byte* out, const byte* in, const byte * in2, const hashes_t * keys)
 {
     tridentwp(out, in, in2, keys->whirlpool_key);
 }
@@ -48,13 +48,13 @@ hash_func_t hash_functions[HASH_COUNT] = {
 
 static 
 void section0 (
-    uchar output[64], 
+    byte output[64], 
     cuchar input[64], 
     cuchar input2[64],
     uint selectidx, 
     const hashes_t * keys)
 {
-    uchar o1[64], o2[64];
+    byte o1[64], o2[64];
     uint x = selectidx / (HASH_COUNT - 1);
     uint y = selectidx % (HASH_COUNT - 1);    if (y >= x) y++;
     
@@ -70,14 +70,14 @@ void section0 (
 
 static 
 void section1 (
-    uchar output[64], 
+    byte output[64], 
     cuchar input[64], 
     cuchar input2[64],
     uint selectidx, 
     const hashes_t * keys
 )
 {
-    uchar o1[64], o2[64];
+    byte o1[64], o2[64];
 
    
     uint x = selectidx / (ZERO_C - 1);
@@ -97,14 +97,14 @@ void section1 (
 
 static 
 void combo2 (
-    uchar output[64], 
+    byte output[64], 
     cuchar input[64], 
     cuchar input2[64],
     uint selectidx, 
     const hashes_t * keys
 )
 {
-    uchar o1[64], o2[64];
+    byte o1[64], o2[64];
 
    
     uint x = selectidx / (ONE_C - 1);
@@ -122,7 +122,7 @@ void combo2 (
 }
 
 void tridenthasher (
-    uchar output[64], 
+    byte output[64], 
     cuchar input[64],
     cuchar input2[64], 
     uint selectidx,
@@ -140,7 +140,7 @@ void tridenthasher (
 }
 
 void trident_cycler (
-    uchar output[64], 
+    byte output[64], 
     cuchar input[64],
     cuchar input2[64], 
     uint selectidx,

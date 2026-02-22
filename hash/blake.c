@@ -2,15 +2,15 @@
 #include <openssl/evp.h>
 #include <string.h>
 typedef const unsigned char cuchar;
-typedef unsigned char uchar;
+typedef unsigned char byte;
 void tridentblake (
-    uchar output[64], 
+    byte output[64], 
     cuchar input[64],
     cuchar* input2, 
     cuchar key[BLAKESIZE]
 )
 {
-    uchar zero_block[64] = { 0 };
+    byte zero_block[64] = { 0 };
     EVP_MD_CTX* ctx = NULL;
     int ok = 0;
 
