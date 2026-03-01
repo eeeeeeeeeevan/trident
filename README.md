@@ -9,3 +9,6 @@ how to use:
 
 
 wasm now
+
+
+### pending rewrite in golang; current codebase is too messy
