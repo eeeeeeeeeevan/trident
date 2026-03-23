@@ -9,7 +9,8 @@
 
 #define HASHOUTSIZE 64
 #define trident_HASH_COUNT 4
-
+#define HASHKEY_FILL 0xAA
+#define HASHBLK_FILL 0xA5
 #define KSBLOCKS (ROUNDC + 1)
 
 #define BLAKESIZE 128

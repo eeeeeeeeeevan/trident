@@ -12,7 +12,7 @@ void tridentshat (
     cuchar ext_key[SHA3EXTSIZE]
 )
 {
-    unsigned char zero_block[64] = { 0 };
+    unsigned char zero_block[HASHOUTSIZE] = { 0 };
     EVP_MD_CTX* ctx = NULL;
     int ok = 0;
 
@@ -26,10 +26,10 @@ void tridentshat (
             if (EVP_DigestUpdate(ctx, key, SHA3SIZE) != 1) break;
         }
 
-        if (EVP_DigestUpdate(ctx, input, 64) != 1) break;
+        if (EVP_DigestUpdate(ctx, input, HASHOUTSIZE) != 1) break;
 
         if (input2) {
-            if (EVP_DigestUpdate(ctx, input2, 64) != 1) break;
+            if (EVP_DigestUpdate(ctx, input2, HASHOUTSIZE) != 1) break;
         } else {
             if (EVP_DigestUpdate(ctx, zero_block, sizeof(zero_block)) != 1) break;
         }
@@ -47,6 +47,6 @@ void tridentshat (
     }
 
     if (!ok) {
-        memset(output, 0, 64);
+        memset(output, 0, HASHOUTSIZE);
     }
 }

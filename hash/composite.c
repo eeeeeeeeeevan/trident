@@ -11,28 +11,28 @@ typedef const unsigned char cuchar;
 #define ONE_C (ZERO_C * (ZERO_C - 1))   
 #define CCOUNTTOTAL (ONE_C * (ONE_C - 1))   
 
-typedef void (*hash_func_t)(byte*, const byte*, const byte*, const hashes_t*);
+typedef void (*hash_func_t)(byte*, const byte*, const byte*, const struct hashes*);
 
 static
-void bl2b (byte* out, const byte* in, const byte * in2, const hashes_t * keys)
+void bl2b (byte* out, const byte* in, const byte * in2, const struct hashes * keys)
 {
     tridentblake(out, in, in2, keys->blake2b_key);
 }
 
 static 
-void sha (byte* out, const byte* in, const byte * in2, const hashes_t * keys)
+void sha (byte* out, const byte* in, const byte * in2, const struct hashes * keys)
 {
     tridentsha(out, in, in2, keys->sha512_key, keys->sha512_ext_key);
 }
 
 static 
-void shat (byte* out, const byte* in, const byte * in2, const hashes_t * keys)
+void shat (byte* out, const byte* in, const byte * in2, const struct hashes * keys)
 {
     tridentshat(out, in, in2, keys->sha3_key, keys->sha3_ext_key);
 }
 
 static 
-void whirlpool (byte* out, const byte* in, const byte * in2, const hashes_t * keys)
+void whirlpool (byte* out, const byte* in, const byte * in2, const struct hashes * keys)
 {
     tridentwp(out, in, in2, keys->whirlpool_key);
 }
@@ -52,7 +52,7 @@ void section0 (
     cuchar input[64], 
     cuchar input2[64],
     uint selectidx, 
-    const hashes_t * keys)
+    const struct hashes * keys)
 {
     byte o1[64], o2[64];
     uint x = selectidx / (HASH_COUNT - 1);
@@ -74,7 +74,7 @@ void section1 (
     cuchar input[64], 
     cuchar input2[64],
     uint selectidx, 
-    const hashes_t * keys
+    const struct hashes * keys
 )
 {
     byte o1[64], o2[64];
@@ -101,7 +101,7 @@ void combo2 (
     cuchar input[64], 
     cuchar input2[64],
     uint selectidx, 
-    const hashes_t * keys
+    const struct hashes * keys
 )
 {
     byte o1[64], o2[64];
@@ -126,7 +126,7 @@ void tridenthasher (
     cuchar input[64],
     cuchar input2[64], 
     uint selectidx,
-    const hashes_t * keys
+    const struct hashes * keys
 )
 {
    
@@ -144,7 +144,7 @@ void trident_cycler (
     cuchar input[64],
     cuchar input2[64], 
     uint selectidx,
-    const hashes_t * keys
+    const struct hashes * keys
 )
 {
     combo2(output, input, input2, selectidx, keys);

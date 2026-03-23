@@ -3,12 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <sys/random.h>
 #include <unistd.h>
 #include <ctype.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-// #include <linux/random.h>
 #include <fcntl.h>
 #include <errno.h>
 ssize_t getline(char **restrict lineptr, size_t *restrict n, FILE *restrict stream);
@@ -32,31 +32,14 @@ void read_file (const char* filename, byte* buffer, size_t size)
     }
     fclose(f);
 }
-// unused because no need
-// uncomment if needed one day
-//  __attribute__((__deprecated__)) 
-// static inline
-// void write_file (const char* filename, const byte* buffer, size_t size)
-// {
-//     FILE* f = fopen(filename, "wb");
-//     if (!f) {
-//         perror("fopen writefile"); return;
-//       //  exit(1);
-//     }
-//     if (fwrite(buffer, 1, size, f) != size) {
-//         fprintf(stderr, "fail %s\n", filename); return;
-//         // exit(1);
-//     }
-//     fclose(f);
-// }
 
 static 
-currstat trident_enc_file (const char* keyfile, const char* infile, const char* outfile, double cpubias, unsigned int memwork)
+enum current_status trident_enc_file (const char* keyfile, const char* infile, const char* outfile, double cpubias, unsigned int memwork)
 {
     byte key[MKEYSIZE];
     byte iv[MKEYSIZE];
-    hashes_t hash_keys; 
-    memset(&hash_keys, 0xAA, sizeof(hashes_t));
+    struct hashes hash_keys; 
+    memset(&hash_keys, HASHKEY_FILL, sizeof(struct hashes));
 
     read_file(keyfile, key, MKEYSIZE);
 
@@ -83,9 +66,15 @@ currstat trident_enc_file (const char* keyfile, const char* infile, const char* 
     fwrite(iv, 1, MKEYSIZE, fout);
     fwrite(&memwork, 1, 1, fout); 
 
+    // store hte original size
+    fseek(fin, 0, SEEK_END);
+    ull fsize = ftell(fin);
+    fseek(fin, 0, SEEK_SET);
+    fwrite(&fsize, sizeof(ull), 1, fout);
+
     byte inbuf[BLOCKSIZE];
     byte outbuf[BLOCKSIZE];
-    bigint block_id = 0;
+    uint128 block_id = 0;
     size_t n;
 
     while ((n = fread(inbuf, 1, BLOCKSIZE, fin)) > 0) {
@@ -107,8 +96,8 @@ currstat trident_dec_file (const char* keyfile, const char* infile, const char* 
 {
     byte key[MKEYSIZE];
     byte iv[MKEYSIZE];
-    hashes_t hash_keys;
-    memset(&hash_keys, 0xAA, sizeof(hashes_t));
+    struct hashes hash_keys;
+    memset(&hash_keys, HASHKEY_FILL, sizeof(struct hashes));
 
     read_file(keyfile, key, MKEYSIZE);
 
@@ -132,9 +121,16 @@ currstat trident_dec_file (const char* keyfile, const char* infile, const char* 
         fclose(fout);
         return ERRIO;
     }
+    ull fsize;
+    if (fread(&fsize, sizeof(ull), 1, fin) != 1) {
+        fclose(fin);
+        fclose(fout);
+        return ERRIO;
+    }
+
 
     trident_state_curr state;
-    currstat status = trident_init(&state, iv, key, &hash_keys, 1.0, memwork); 
+    enum current_status status = trident_init(&state, iv, key, &hash_keys, 1.0, memwork); 
     if (status != SUCCESS) {
         fclose(fin);
         fclose(fout);
@@ -143,12 +139,17 @@ currstat trident_dec_file (const char* keyfile, const char* infile, const char* 
 
     byte inbuf[BLOCKSIZE];
     byte outbuf[BLOCKSIZE];
-    bigint block_id = 0;
+    uint128 block_id = 0;
+    ull written = 0;
     size_t n;
 
     while ((n = fread(inbuf, 1, BLOCKSIZE, fin)) == BLOCKSIZE) {
         trident_dec(&state, outbuf, inbuf, block_id++);
-        fwrite(outbuf, 1, BLOCKSIZE, fout);
+        ull remaining = fsize-written;
+        size_t to_write = (remaining < BLOCKSIZE) ? remaining : BLOCKSIZE;
+        fwrite(outbuf, 1, to_write, fout);
+        written += to_write;
+        // fwrite(outbuf, 1, BLOCKSIZE, fout);
     }
 
     fclose(fin);
@@ -310,48 +311,29 @@ void generate_key()
     if (mkdir(dirpath, 0700) != 0 && errno != EEXIST) {
         perror("fail dir"); return;
     }
-    // ssize_t ret = syscall(SYS_getrandom, buf, MKEYSIZE, 0);
-    FILE* rf = fopen("/dev/urandom", "rb");
-        if (!rf) {
-            perror("urandom");
-            return;
-        }
-        if (fread(buf, 1, MKEYSIZE, rf) != MKEYSIZE) {
-            perror("fread urandom");
-            fclose(rf);
-            return;
-        }
-    fclose(rf);
-    
-    int fd = open(filepath, O_WRONLY | O_CREAT|O_TRUNC, 0600);
-    if (fd < 0) {
-        perror("aw fuck");
-        memset(buf, 0, MKEYSIZE);
-        return;
-    }
-    if (write(fd, buf, MKEYSIZE) != MKEYSIZE) {
-        perror("write fail");
-        close(fd);
-        memset(buf, 0, MKEYSIZE);
+
+    ssize_t bytes_read = getrandom(buf, MKEYSIZE, 0);
+
+    if (bytes_read != MKEYSIZE) {
+        perror("getrandom failed");
+        free(name);
         return;
     }
 
-    close(fd);
+    FILE* f = fopen(filepath, "wb");
+    if (!f) {
+        perror("fopen key file");
+        free(name);
+        return;
+    }
+    if (fwrite(buf, 1, MKEYSIZE, f) != MKEYSIZE) {
+        perror("fwrite key file");
+        fclose(f);
+        free(name);
+        return;
+    }
+    fclose(f);
 
-    volatile unsigned char* p = buf;
-    for (size_t i = 0; i < MKEYSIZE; i++) p[i] = 0;
-    
-    // FILE* f = fopen("/dev/urandom", "rb");
-    // if (!f) {
-    //     perror("fopen urandom");
-    //     exit(1);
-    // }
-    // if (fread(buf, 1, MKEYSIZE, f) != MKEYSIZE) {
-    //     fclose(f);
-    //     exit(1);
-    // }
-    // fclose(f);
-    
-    // write_file(name, buf, MKEYSIZE);
     printf("\nwritten out as %s\n", filepath);
+    free(name);
 }

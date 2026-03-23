@@ -2,13 +2,14 @@
 
 #include <limits.h>
 #include <stdint.h>
-
+#include <trident.h>
+#include "types.h"
 typedef unsigned int uint;
 typedef unsigned long long ull; 
-
+// typedef currstat enum current_status; 
 // ALWAYS: SUCCESS = 0
 // ANY NUMBER > 0 -> WTF
-typedef enum {
+typedef enum current_status {
     SUCCESS = 0,
     ERRORALLOC = 1,
     // inv param

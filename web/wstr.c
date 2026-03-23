@@ -21,8 +21,8 @@ EMSCRIPTEN_KEEPALIVE
 int trident_encrypt (const byte* key, const byte* plaintext, int pt_len, byte* out, int memwork)
 {
     byte iv[MKEYSIZE];
-    hashes_t hash_keys;
-    memset(&hash_keys, 0xAA, sizeof(hashes_t));
+    struct hashes hash_keys;
+    memset(&hash_keys, HASHKEY_FILL, sizeof(struct hashes));
 
     FILE* f = fopen("/dev/urandom", "rb");
     if (!f) return -1;
@@ -77,8 +77,8 @@ int trident_decrypt (const byte* key, const byte* input, int in_len, byte* out)
     if (in_len < MKEYSIZE + 1 + BLOCKSIZE) return -1;
 
     byte iv[MKEYSIZE];
-    hashes_t hash_keys;
-    memset(&hash_keys, 0xAA, sizeof(hashes_t));
+    struct hashes hash_keys;
+    memset(&hash_keys, HASHKEY_FILL, sizeof(struct hashes));
 
     memcpy(iv, input, MKEYSIZE);
     unsigned int memwork = input[MKEYSIZE];

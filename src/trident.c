@@ -97,9 +97,9 @@ currstat init_memhard (trident_state_curr* state, unint memwork)
     if (!map) return ERRORALLOC;
 
     ull keyedselect = 0;
-    for (unint i=0; i<8; i++) {
+    for (unint i=0; i<HASHOUTSIZE/sizeof(ull); i++) {
         ull temp;
-        memcpy(&temp, &state->counter_block[i * 8], 8);
+        memcpy(&temp, &state->counter_block[i * sizeof(ull)], sizeof(ull));
         keyedselect ^= temp;
     }
 
@@ -123,7 +123,7 @@ currstat init_memhard (trident_state_curr* state, unint memwork)
 
     // state finalizer
     // state->memhard.mask_idx = (msize / 8);
-    state->memhard.mask_idx = (msize / 8) - 1;
+    state->memhard.mask_idx = (msize / sizeof(ull)) - 1;
     state->memhard.mask_map = msize - 1;
     state->memhard.counter = 0;
     state->memhard.position = 0;
@@ -226,22 +226,24 @@ void pbox_init (trident_state_curr* state)
 static 
 void keysc_init (trident_state_curr* state, const unsigned char master_key[MKEYSIZE], const unsigned char iv[MKEYSIZE], ull cpu_work)
 {
-    unsigned char key_iv[256];
+    // unsigned char key_iv[256];
+    unsigned char key_iv[MKEYSIZE*2];
     memcpy(&key_iv[0], master_key, MKEYSIZE);
-    memcpy(&key_iv[128], iv, MKEYSIZE);
+    memcpy(&key_iv[MKEYSIZE], iv, MKEYSIZE);
 
+    const unint key_iv_blocks = (MKEYSIZE*2)/BLOCKSIZE;
     const unint key_blocks = trident_KSBLOCKS;
-    const unint key_init = MACMIN(8, key_blocks);
+    const unint key_init = MACMIN(key_iv_blocks, key_blocks);
 
     for (unint k = 0; k < key_init; k++) {
         memcpy(state->key_schedule[k], &key_iv[k * BLOCKSIZE], BLOCKSIZE);
     }
 
-    if (key_blocks > 8) {
+    if (key_blocks > key_iv_blocks) {
         unsigned char hash_block[HASHOUTSIZE];
-        memset(hash_block, 0xA5, HASHOUTSIZE);
+        memset(hash_block, HASHBLK_FILL, HASHOUTSIZE);
         // key expansion
-        for (unint k=0; k<key_blocks-8; k++) {
+        for (unint k=0; k<key_blocks-key_iv_blocks; k++) {
             tridenthasher(
                 hash_block, 
                 hash_block, 
@@ -252,7 +254,7 @@ void keysc_init (trident_state_curr* state, const unsigned char master_key[MKEYS
             tridenthasher(
                 hash_block, 
                 hash_block, 
-                &master_key[64],
+                &master_key[MKEYSIZE/2],
                 boxrng(state, 23), 
                 state->hash_keys
             );
@@ -266,18 +268,18 @@ void keysc_init (trident_state_curr* state, const unsigned char master_key[MKEYS
             tridenthasher(
                 hash_block, 
                 hash_block, 
-                &iv[64],
+                &iv[MKEYSIZE/2],
                 boxrng(state, 23), 
                 state->hash_keys
             );
 
-            memcpy(state->key_schedule[k + 8], hash_block, BLOCKSIZE);
+            memcpy(state->key_schedule[k + key_iv_blocks], hash_block, BLOCKSIZE);
         }
     }
-    
+    // todo: what a fucking mess
     for (ull r=0; r<cpu_work; r++) {
         for (unint k=0; k<key_blocks; k++) {
-            for (unint i=0; i<16; i++) {
+            for (unint i=0; i<BLOCKSIZE/2; i++) {
                 unsigned short x, y;
                 memcpy(&x, &state->key_schedule[k][i * 2], 2);
                 y = rng_next(state);
@@ -288,7 +290,13 @@ void keysc_init (trident_state_curr* state, const unsigned char master_key[MKEYS
     }
 }
 
-currstat trident_init (trident_state_curr* state, const unsigned char iv[MKEYSIZE], const unsigned char master_key[MKEYSIZE], const hashes_t* hash_keys, double cpubias, unint memwork)
+currstat trident_init ( trident_state_curr* state, 
+    const unsigned char iv[MKEYSIZE],
+    const unsigned char master_key[MKEYSIZE], 
+    const struct hashes* hash_keys, 
+    double cpubias, 
+    unint memwork
+)
 {
     if (!state || !iv || !master_key || !hash_keys) return ERRINVPARAM;
     if (memwork < MINMEM || memwork > MAXMEM)  return ERRINVPARAM;
@@ -313,13 +321,13 @@ currstat trident_init (trident_state_curr* state, const unsigned char iv[MKEYSIZ
 
     tridenthasher(
         (unsigned char*)state->hash_block,
-        &master_key[64],
-        &iv[64], 
+        &master_key[MKEYSIZE/2],
+        &iv[MKEYSIZE/2], 
         keyedselect % 24, 
         hash_keys
     );
 
-    const ull cpu_work = ((1ULL << memwork) / 16) * cpubias;
+    const ull cpu_work = ((1ULL << memwork) / (BLOCKSIZE/2)) * cpubias;
 
     currstat status = init_memhard(state, memwork);
     if (status != SUCCESS) {
@@ -352,12 +360,12 @@ substitute (unsigned short block[16], const unsigned short sbox[SBOXSIZE])
 static 
 void permute (unsigned short block[16], const unsigned char pbox[BLOCKSIZE])
 {
-    bigint pht[2];
+    uint128 pht[2];
     memcpy(pht, block, BLOCKSIZE);
     // ph transform "diffusion"
     #define ptrans(n1, n2) do {           \
-        bigint n1_new = n1 + n2;             \
-        bigint n2_new = n1 + (2 * n2);       \
+        uint128 n1_new = n1 + n2;             \
+        uint128 n2_new = n1 + (2 * n2);       \
         n1 = n1_new; n2 = n2_new;              \
     } while(0)
 
@@ -379,15 +387,15 @@ void permute (unsigned short block[16], const unsigned char pbox[BLOCKSIZE])
 static 
 void invperm (unsigned short block[16], const unsigned char pbox[BLOCKSIZE])
 {
-    bigint pht[2];
+    uint128 pht[2];
 
     for (unint i=0; i<BLOCKSIZE; i++) {
         ((unsigned char*)pht)[i] = ((const unsigned char*)block)[pbox[i]];
     }
     // inverse
     #define ptransinv(n1, n2) do {        \
-        bigint n1_new = (2 * n1) - n2;      \
-        bigint n2_new = n2 - n1;            \
+        uint128 n1_new = (2 * n1) - n2;      \
+        uint128 n2_new = n2 - n1;            \
         n1 = n1_new; n2 = n2_new;              \
     } while(0)
 
@@ -404,12 +412,12 @@ void invperm (unsigned short block[16], const unsigned char pbox[BLOCKSIZE])
     memcpy(block, pht, BLOCKSIZE);
 }
 
-void trident_enc (trident_state_curr* state, unsigned char output[BLOCKSIZE], const unsigned char input[BLOCKSIZE], bigint block_id)
+void trident_enc (trident_state_curr* state, unsigned char output[BLOCKSIZE], const unsigned char input[BLOCKSIZE], uint128 block_id)
 {
     unsigned short block[16];
     memcpy(block, input, BLOCKSIZE);
 
-    bigint* bptr = (bigint*)block;
+    uint128* bptr = (uint128*)block;
     bptr[0] ^= block_id;
 
     for (unint r=0; r<TRIDENT_TROUNDS; r++) {
@@ -422,7 +430,7 @@ void trident_enc (trident_state_curr* state, unsigned char output[BLOCKSIZE], co
     memcpy(output, block, BLOCKSIZE);
 }
 
-void trident_dec (trident_state_curr* state, unsigned char output[BLOCKSIZE], const unsigned char input[BLOCKSIZE], bigint block_id)
+void trident_dec (trident_state_curr* state, unsigned char output[BLOCKSIZE], const unsigned char input[BLOCKSIZE], uint128 block_id)
 {
     unsigned short block[16];
     memcpy(block, input, BLOCKSIZE);
@@ -435,7 +443,7 @@ void trident_dec (trident_state_curr* state, unsigned char output[BLOCKSIZE], co
         xorblocks((unsigned char*)block, state->key_schedule[r - 1], BLOCKSIZE);
     }
 
-    bigint* bptr = (bigint*)block;
+    uint128* bptr = (uint128*)block;
     bptr[0] ^= block_id;
 
     memcpy(output, block, BLOCKSIZE);

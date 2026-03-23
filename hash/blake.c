@@ -10,7 +10,7 @@ void tridentblake (
     cuchar key[BLAKESIZE]
 )
 {
-    byte zero_block[64] = { 0 };
+    byte zero_block[HASHOUTSIZE] = { 0 };
     EVP_MD_CTX* ctx = NULL;
     int ok = 0;
 
@@ -24,10 +24,10 @@ void tridentblake (
             if (EVP_DigestUpdate(ctx, key, BLAKESIZE) != 1) break;
         }
 
-        if (EVP_DigestUpdate(ctx, input, 64) != 1) break;
+        if (EVP_DigestUpdate(ctx, input, HASHOUTSIZE) != 1) break;
 
         if (input2) {
-            if (EVP_DigestUpdate(ctx, input2, 64) != 1) break;
+            if (EVP_DigestUpdate(ctx, input2, HASHOUTSIZE) != 1) break;
         } else {
             if (EVP_DigestUpdate(ctx, zero_block, sizeof(zero_block)) != 1) break;
         }
@@ -41,7 +41,7 @@ void tridentblake (
     }
 
     if (!ok) {
-        memset(output, 0, 64);
+        memset(output, 0, HASHOUTSIZE);
     }
 }
 

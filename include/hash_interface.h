@@ -8,14 +8,14 @@ typedef unsigned long long ull;
 typedef unsigned char byte;
 typedef const unsigned char cuchar;
 // TKSIZE - MKEYSIZE
-typedef struct {
+typedef struct hashes {
     byte blake2b_key[BLAKESIZE];
     byte sha512_key[SHA512SIZE];
     byte sha512_ext_key[SHAEXTSIZE];
     byte sha3_key[SHA3SIZE];
     byte sha3_ext_key[SHA3EXTSIZE];
     byte whirlpool_key[WPKEYSIZE];
-} hashes_t;
+} hashes_t, hashes;
 
 
 void tridentblake (byte output[64], cuchar input[64],  cuchar * input2, cuchar key[BLAKESIZE]);
@@ -23,6 +23,6 @@ void tridentsha (byte output[64], cuchar input[64],  cuchar * input2, cuchar key
 void tridentshat (byte output[64], cuchar input[64],  cuchar * input2, cuchar key[SHA3SIZE],cuchar ext_key[SHA3EXTSIZE]);
 void tridentwp (byte output[64], cuchar input[64],  cuchar * input2, cuchar key[WPKEYSIZE]);
 // chainer functions
-void tridenthasher (byte output[64], cuchar input[64],   cuchar input2[64], uint selector, const hashes_t * keys);
+void tridenthasher (byte output[64], cuchar input[64],   cuchar input2[64], uint selector, const struct hashes * keys);
 // use comb selector with selection idx
-void trident_cycler (byte output[64], cuchar input[64],   cuchar input2[64], uint selector,  const hashes_t * keys);
+void trident_cycler (byte output[64], cuchar input[64],   cuchar input2[64], uint selector,  const struct hashes * keys);

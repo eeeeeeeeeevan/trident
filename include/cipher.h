@@ -5,7 +5,8 @@
 #include "config.h"
 #include "hash_interface.h"
 
-typedef __uint128_t bigint;
+typedef __uint128_t uint128;
+typedef unsigned long long ull;
 typedef unsigned char byte;
 typedef struct {
     ull counter;
@@ -24,11 +25,11 @@ typedef struct {
     byte key_schedule[KSBLOCKS][BLOCKSIZE];
     byte counter_block[HASHOUTSIZE];
     unsigned short hash_block[HASHOUTSIZE/2]; 
-    const hashes_t * hash_keys;
+    const struct hashes * hash_keys;
     memhard_t memhard;
 } trident_cstate;
 
-void trident_cycler (byte output[64], const byte input[64], const byte input2[64], unsigned int selector, const hashes_t * keys);
-void encblock (trident_cstate * state, byte output[BLOCKSIZE], const byte input[BLOCKSIZE], __uint128_t block_id);
-void decrypt_block (trident_cstate * state, byte output[BLOCKSIZE], const byte input[BLOCKSIZE], __uint128_t block_id);
+void trident_cycler (byte output[64], const byte input[64], const byte input2[64], unsigned int selector, const struct hashes * keys);
+void encblock (trident_cstate * state, byte output[BLOCKSIZE], const byte input[BLOCKSIZE], uint128 block_id);
+void decrypt_block (trident_cstate * state, byte output[BLOCKSIZE], const byte input[BLOCKSIZE], uint128 block_id);
 void finalcleanup (trident_cstate * state);
